@@ -9,25 +9,43 @@ import platform
 #   NOTE: THIS IS JUST ONE EXAMPLE INPUT DATA
 ###############################################################################
 
-
-################## YOUR CODE GOES HERE ########################################
-
 import time
 
+########################################################################################################################
+########################################################################################################################
+
 class Node:
+    '''
+    The Node Class that is used to maintain the data for each node in the graph. It also contains the necessary methods
+    to print and display the values of the node
+    '''
     def __init__(self, identifier, operator, order_of_expansion, cost, heuristic, parent, coordinates):
+        '''
+        Method used to instantiate a class
+        @param identifier: an unique integer value for the node
+        @param operator: the operator that generated the node from parent
+        @param order_of_expansion: the order in which this node was expanded
+        @param cost: the cost to reach this node
+        @param heuristic: the estimated cost to reach the goal from this node
+        @param parent: reference to the parent node
+        @param coordinates: the coordinates of this node on the node map
+        '''
         self.identifier = identifier
         self.operator = operator
         self.order_of_expansion = order_of_expansion
         self.cost = cost
         self.heuristic = heuristic
-        self.f = cost + heuristic
+        self.f = cost + heuristic                           # the sum of the actual cost and estimated cost
         self.parent = parent
-        self.children = []
+        self.children = []                                  # the list of child nodes of this node
         self.coordinates = coordinates
-        self.isGOAL = False
+        self.isGOAL = False                                 # flag to determine whether its a goal state or not
 
     def get_operators_to_root(self):
+        '''
+        This method is used to generate the path from the node to the root(start), traversing through the parent
+        @return: the path from the start node as a string
+        '''
         current = self
         output = ''
         first = True
@@ -42,11 +60,20 @@ class Node:
             current = current.parent
         return output
 
-
     def __lt__(self, other):
+        '''
+        This method is used to override the less than operator in python to use the f cost for comparison
+        @param other: the other node to be compared
+        @return: boolean value stating whether its less than or not
+        '''
         return (self.f < other.f)
 
     def __len__(self):
+        '''
+        This method is used to return the depth of the node from the root node. It traverse though the parents to get
+        to the root node.
+        @return: the depth of the node as an integer
+        '''
         count = 0
         current_node = self
         while current_node != None:
@@ -55,12 +82,19 @@ class Node:
         return count - 1
 
     def __str__(self):
+        '''
+        This method converts the node into a string for output
+        @return: a string with all the data as a string
+        '''
+
+        # Converts the child array to a string
         children_str = ''
         if (len(self.children)) > 0:
             for i in range(len(self.children) - 1):
                 children_str += 'N' + str(self.children[i].identifier) + ':' + self.children[i].get_operators_to_root() + ','
             children_str += 'N' + str(self.children[-1].identifier) + ':' + self.children[-1].get_operators_to_root()
 
+        # Combined all the data and return as a string
         return "N" + str(self.identifier) + ':' \
                + self.get_operators_to_root() + '\t' \
                + str(self.order_of_expansion) + ' ' \
@@ -69,43 +103,62 @@ class Node:
                + str(self.f) + '\n' \
                + 'Children:\t{' + children_str + '}'
 
+########################################################################################################################
+########################################################################################################################
+
 class SearchGraph:
+    '''
+    This class is used to maintain all the necessary information for the search
+    '''
     def __init__(self, size):
-        self.OPEN = []
-        self.CLOSED = []
-        self.ACTIONS = [['LU','U','RU'],['L','O','R'],['LD','D','RD']]
-        self.MAP = [[0 for h in range(int(size))] for w in range(int(size))]
-        self.NODEMAP = [[None for h in range(int(size))] for w in range(int(size))]
+        '''
+        Instantiate the class with the default values and gets the size as an input
+        @param size: the height and width of the map (size x size)
+        '''
+        self.OPEN = []                                                              # Frontier list
+        self.CLOSED = []                                                            # Explored list
+        self.ACTIONS = [['LU','U','RU'],['L','O','R'],['LD','D','RD']]              # All Actions
+        self.MAP = [[0 for h in range(int(size))] for w in range(int(size))]        # Real map
+        self.NODEMAP = [[None for h in range(int(size))] for w in range(int(size))] # Node map
+        self.GOAL_COORD = [0,0]                                                     # Coordinates of the goal node
+        self.node_count = 0                                                         # Number of nodes generated
+        self.expansion_count = 1                                                    # Number of nodes expanded
 
-        self.GOAL_COORD = [0,0]
-
-        self.node_count = 0
-        self.expansion_count = 1
-
-        self.options = {
-            'display_output' : True,
-            'display_map' : True,
-            'display_node_expansion' : 0,
-            'goal_reached': False,
-            'algorithm' : 'D',
-            'bound' : 10,
-            'show_time' : True
+        self.options = {                            # set of options for the graph search
+            'display_output' : True,                # flag to decide whether to display the output or not
+            'display_map' : True,                   # flag to decide whether to display the map in the output
+            'display_node_expansion' : 0,           # integer to keep track of the count of node expansions to print
+            'goal_reached': False,                  # flag to keep track whether the goal has been reached
+            'algorithm' : 'D',                      # stores which algorithm to use for the search
+            'bound' : 10,                           # stores the bound for the DLS search
+            'show_time' : True                      # flag to store whether to display time taken
         }
 
     def add_map(self, map):
+        '''
+        add the input map into the graph search instance, generate the inital start node and determine the coordinates
+        of the goal node
+        @param map: the input map after reading the file
+        @return: none
+        '''
         for i in range(len(self.MAP)):
             for j in range(len(self.MAP)):
-                self.MAP[i][j] = map[i + 1][j]
+                self.MAP[i][j] = map[i + 1][j]                                      # add the content to the map
                 if map[i+1][j] == 'S':
-                    new_Node = Node(self.node_count, 'S', 1, 0, 0, None, [i, j])
-                    self.NODEMAP[i][j] = new_Node
-                    self.OPEN.append(new_Node)
-                    self.node_count += 1
+                    new_Node = Node(self.node_count, 'S', 1, 0, 0, None, [i, j])    # generate the start node
+                    self.NODEMAP[i][j] = new_Node                                   # add the start node to the node map
+                    self.OPEN.append(new_Node)                                      # add start node to open list
+                    self.node_count += 1                                            # increase node count
                 if map[i + 1][j] == 'G':
-                    self.GOAL_COORD[0] = i + 1
+                    self.GOAL_COORD[0] = i + 1                                      # store the goal coordinates
                     self.GOAL_COORD[1] = j
 
     def expand(self, node):
+        '''
+
+        @param node:
+        @return:
+        '''
         for i in range(-1,2):
             for j in range(-1,2):
                 if i != 0 or j != 0:
@@ -116,7 +169,7 @@ class SearchGraph:
                     if new_X >= 0 and new_Y >= 0 and new_X < len(self.MAP) and new_Y < len(self.MAP):
                         # Case 2 (Ridge)
                         if not self.check_ridge(node.coordinates[0], node.coordinates[1], new_X,new_Y,diagonal):
-                            new_Cost = self.get_cost(new_X,new_Y,diagonal)
+                            new_Cost = self.get_cost(diagonal)
                             # Case 3 (Check if its in the ancestor list)
                             if self.NODEMAP[new_X][new_Y] not in self.CLOSED:
                                 if self.NODEMAP[new_X][new_Y] is not None:
@@ -157,10 +210,22 @@ class SearchGraph:
 
 
     def check_diagonal(self,i,j):
+        '''
+        determine whether the move is a diagonal using the increments
+        @param i: change in the x direction
+        @param j: change in the y direction
+        @return: if diagonal move then return True
+        '''
         if (i == -1 and j == -1) or (i == -1 and j == 1) or (i == 1 and j == -1) or (i == 1 and j == 1):
             return True
+        return False
 
-    def get_cost(self,i,j,diagonal):
+    def get_cost(self,diagonal):
+        '''
+        get the cost of the move, if the move is diagonal then the cost will be 1 else cost will be 2
+        @param diagonal: flag to determine whether the move is diagonal
+        @return:
+        '''
         if diagonal:
             return 1
         else:
