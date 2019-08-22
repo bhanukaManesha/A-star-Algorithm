@@ -12,8 +12,6 @@ import platform
 
 ################## YOUR CODE GOES HERE ########################################
 
-import heapq
-import math
 import time
 
 class Node:
@@ -29,14 +27,6 @@ class Node:
         self.coordinates = coordinates
         self.isGOAL = False
 
-    # def get_operator_as_string(self,operators):
-    #     # operator_string = ''
-    #     # if len(operators) > 0 :
-    #     #     for i in range(len(operators) - 1):
-    #     #         operator_string += operators[i] + '-'
-    #     #     operator_string += operators[-1]
-    #     # return operator_string
-
     def get_operators_to_root(self):
         current = self
         output = ''
@@ -50,11 +40,7 @@ class Node:
             else:
                 output =  str(current.operator) + '-' + output
             current = current.parent
-
-
         return output
-
-
 
 
     def __lt__(self, other):
@@ -82,30 +68,9 @@ class Node:
                + str(self.heuristic) + ' ' \
                + str(self.f) + '\n' \
                + 'Children:\t{' + children_str + '}'
-#
-# class PriorityQueue:
-#     def __init__(self, initial = None, comparefunc = lambda x:x):
-#         self.comparefunc = comparefunc
-#         if initial:
-#             self._heap = [(self.comparefunc(item), item) for item in initial]
-#             heapq.heapify(self._heap)
-#         else:
-#             self._heap = []
-#
-#     def __len__(self):
-#         return len(self._heap)
-#
-#     def push(self, item):
-#         heapq.heappush(self._heap, (self.comparefunc(item), item))
-#
-#     def pop(self):
-#         return heapq.heappop(self._heap)[1]
-#
-#
 
 class SearchGraph:
     def __init__(self, size):
-        # self.OPEN = PriorityQueue()
         self.OPEN = []
         self.CLOSED = []
         self.ACTIONS = [['LU','U','RU'],['L','O','R'],['LD','D','RD']]
@@ -118,11 +83,13 @@ class SearchGraph:
         self.expansion_count = 1
 
         self.options = {
+            'display_output' : True,
             'display_map' : True,
             'display_node_expansion' : 0,
-            'goal_state': False,
+            'goal_reached': False,
             'algorithm' : 'D',
-            'bound' : 10
+            'bound' : 10,
+            'show_time' : True
         }
 
     def add_map(self, map):
@@ -150,15 +117,15 @@ class SearchGraph:
                         # Case 2 (Ridge)
                         if not self.check_ridge(node.coordinates[0], node.coordinates[1], new_X,new_Y,diagonal):
                             new_Cost = self.get_cost(new_X,new_Y,diagonal)
+                            # Case 3 (Check if its in the ancestor list)
                             if self.NODEMAP[new_X][new_Y] not in self.CLOSED:
                                 if self.NODEMAP[new_X][new_Y] is not None:
 
                                     new_Node = Node(self.NODEMAP[new_X][new_Y].identifier,
                                                     self.ACTIONS[i+1][j+1],
-                                                    # node.operator + [self.ACTIONS[i+1][j+1]],
                                                     self.expansion_count,
                                                     node.cost + new_Cost,
-                                                    self.heuristic(new_X,new_Y,diagonal),
+                                                    self.heuristic(new_X,new_Y),
                                                     node,
                                                     [new_X, new_Y]
                                                     )
@@ -170,11 +137,10 @@ class SearchGraph:
 
                                 else:
                                     new_Node = Node(self.node_count,
-                                                    # node.operator + [self.ACTIONS[i+1][j+1]],
                                                     self.ACTIONS[i + 1][j + 1],
                                                     self.expansion_count,
                                                     node.cost + new_Cost,
-                                                    self.heuristic(new_X, new_Y,diagonal),
+                                                    self.heuristic(new_X, new_Y),
                                                     node,
                                                     [new_X, new_Y]
                                                     )
@@ -203,31 +169,70 @@ class SearchGraph:
     def check_ridge(self,current_X, current_Y, new_X,new_Y, diagonal):
         if self.MAP[new_X][new_Y] == 'X':
             return True
-
         if diagonal and new_X - 1 >= 0 and (new_X - 1 != current_X - 2) and self.MAP[new_X - 1][new_Y] == 'X':
             return True
         if diagonal and new_X + 1 < len(self.MAP) and (new_X + 1 != current_X + 2) and self.MAP[new_X + 1][new_Y] == 'X':
             return True
-
         if diagonal and new_Y - 1 >= 0 and (new_Y - 1 != current_Y - 2) and self.MAP[new_X][new_Y - 1] == 'X':
             return True
         if diagonal and new_Y + 1 < len(self.MAP) and (new_Y + 1 != current_Y + 2) and self.MAP[new_X][new_Y + 1] == 'X':
             return True
-
-        # if diagonal and new_Y + 1 < len(self.MAP) and new_X + 1 and self.MAP[new_X + 1][new_Y + 1] == 'X':
-        #     return True
-        # if diagonal and new_Y - 1 >= 0 and self.MAP[new_X - 1][new_Y - 1] == 'X':
-        #     return True
-        # if diagonal and new_Y + 1 < len(self.MAP) and new_X + 1 < len(self.MAP) and [new_Y + 1] == 'X':
-        #     return True
-        # if diagonal and new_Y - 1 >= 0 and new_X - 1 >= 0 and self.MAP[new_X + 1][new_Y - 1] == 'X':
-        #     return True
         return False
 
     def check_goal(self,new_X,new_Y):
         if self.MAP[new_X][new_Y] == 'G':
             return True
         return False
+
+    def heuristic(self,x,y):
+        dx = abs(x - self.GOAL_COORD[0])
+        dy = abs(y - self.GOAL_COORD[1])
+
+        return max(dx,dy)
+
+    def order(self):
+        self.OPEN.sort(key=lambda x: x, reverse=True)
+
+
+    def search(self):
+        start = time.time()
+        while len(self.OPEN) > 0 :
+
+            current_node = self.OPEN.pop()
+
+            if self.options['algorithm'] == 'D' and len(current_node) > self.options['bound']:
+                continue
+
+            generated_solution = current_node.get_operators_to_root()
+
+            self.CLOSED.append(current_node)
+
+            self.expand(current_node)
+            current_node.order_of_expansion = self.expansion_count
+            self.expansion_count += 1
+
+            if self.options['algorithm'] == 'A':
+                self.order()
+
+            self.display(current_node)
+
+            if current_node.isGOAL:
+                self.options['goal_reached'] = True
+                if self.options['display_output']:
+                    self.display(current_node)
+                    if self.options['show_time']:
+                        end = time.time()
+                        print("Time Taken for " + self.options['algorithm'] + ": " + str(end - start))
+                return generated_solution
+
+        if self.options['display_output'] :
+            print("NO-PATH")
+            if self.options['show_time']:
+                end = time.time()
+                print("Time Taken for " + self.options['algorithm'] + ": " + str(end - start))
+
+        return "NO-PATH"
+
 
     def get_open_list_as_string(self):
         output = ''
@@ -236,10 +241,6 @@ class SearchGraph:
                       + ' ' + str(open_node.cost) + ' ' + str(round(open_node.heuristic,2)) + ' ' + str(round(open_node.f,2)) +  ')'
         return output
 
-        # for i in range(len(self.OPEN)):
-        #     output += '(N' + str(self.OPEN._heap[i][0].identifier) + ':' + self.OPEN._heap[i][0].get_operators_to_root() \
-        #               + ' ' + str(self.OPEN._heap[i][0].cost) + ' ' + str(self.OPEN._heap[i][0].heuristic) + ' ' + str(self.OPEN._heap[i][0].f) +  ')'
-        # return output
     def get_closed_list_as_string(self):
         output = ''
         for closed_node in self.CLOSED:
@@ -265,9 +266,8 @@ class SearchGraph:
 
             self.options['display_node_expansion'] -= 1
             print(output)
-        # output += '\n' + current_node.get_operator_as_string(current_node.operator) + ' ' '' + str(current_node.cost) + '\n'
 
-        if self.options['goal_state'] :
+        if self.options['goal_reached'] :
             while current_node != None:
                 map = ''
                 if self.options['display_map']:
@@ -285,52 +285,11 @@ class SearchGraph:
                 current_node = current_node.parent
             print(output)
 
-    def heuristic(self,x,y,diagonal):
-        euclidean_dist = math.sqrt(sum([(i - j) ** 2 for i, j in zip([x,y], self.GOAL_COORD)]))
-        # If action is not a diagonal add a bit more penalty
-        # if not diagonal:
-        #     euclidean_dist += 1.5
-        # print(euclidean_dist)
-        return euclidean_dist
-
-    def order(self):
-        self.OPEN.sort(key=lambda x: x, reverse=True)
-
-    def search(self):
-        while len(self.OPEN) > 0 :
-
-            current_node = self.OPEN.pop()
-
-            if self.options['algorithm'] == 'D' and len(current_node) > self.options['bound']:
-                continue
-            # current_node = self.OPEN.pop()
-            generated_solution = current_node.get_operators_to_root()
-
-            self.CLOSED.append(current_node)
-
-            self.expand(current_node)
-            current_node.order_of_expansion = self.expansion_count
-            self.expansion_count += 1
-
-            if self.options['algorithm'] == 'A':
-                self.order()
-
-            self.display(current_node)
-
-            if current_node.isGOAL:
-                self.options['goal_state'] = True
-                self.display(current_node)
-                return generated_solution
-
-        return "NO-PATH"
-
-
 def graphsearch(map, flag, procedure_name):
-    start = time.time()
+
     map_size = map[0]
     search_graph = SearchGraph(map_size)
     search_graph.add_map(map)
-    search_graph.options['display_map'] = False
     search_graph.options['display_node_expansion'] = flag
 
     if procedure_name == "D":
@@ -344,9 +303,6 @@ def graphsearch(map, flag, procedure_name):
     else:
         print("invalid procedure name")
     solution = search_graph.search()
-    print(solution)
-    end = time.time()
-    print("Time Taken for " + procedure_name + ": " + str(end - start))
     return solution
 
 def read_from_file(file_name):
