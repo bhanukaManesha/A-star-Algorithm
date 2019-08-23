@@ -1,7 +1,7 @@
 import argparse as ap
 import re
 import platform
-
+import time
 ######## RUNNING THE CODE ####################################################
 #   You can run this code from terminal by executing the following command
 #   python planpath.py <INPUT/input#.txt> <OUTPUT/output#.txt> <flag> <algorithm>
@@ -9,7 +9,6 @@ import platform
 #   NOTE: THIS IS JUST ONE EXAMPLE INPUT DATA
 ###############################################################################
 
-import time
 
 ########################################################################################################################
 ########################################################################################################################
@@ -30,15 +29,15 @@ class Node:
         @param parent: reference to the parent node
         @param coordinates: the coordinates of this node on the node map
         '''
-        self.identifier = identifier
-        self.operator = operator
-        self.order_of_expansion = order_of_expansion
-        self.cost = cost
-        self.heuristic = heuristic
+        self.identifier = identifier                        # an unique integer value for the node
+        self.operator = operator                            # the operator that generated the node from parent
+        self.order_of_expansion = order_of_expansion        # the order in which this node was expanded
+        self.cost = cost                                    # the cost to reach this node
+        self.heuristic = heuristic                          # the estimated cost to reach the goal from this node
         self.f = cost + heuristic                           # the sum of the actual cost and estimated cost
-        self.parent = parent
+        self.parent = parent                                # reference to the parent node
         self.children = []                                  # the list of child nodes of this node
-        self.coordinates = coordinates
+        self.coordinates = coordinates                      # the coordinates of this node on the node map
         self.isGOAL = False                                 # flag to determine whether its a goal state or not
 
     def get_operators_to_root(self):
@@ -136,7 +135,7 @@ class SearchGraph:
 
     def add_map(self, map):
         '''
-        add the input map into the graph search instance, generate the inital start node and determine the coordinates
+        add the input map into the graph search instance, generate the initial start node and determine the coordinates
         of the goal node
         @param map: the input map after reading the file
         @return: none
@@ -155,56 +154,87 @@ class SearchGraph:
 
     def expand(self, node):
         '''
-
-        @param node:
-        @return:
+        method used to expand the node based on the rules and possible actions
+        @param node: reference to the current node
+        @return: none
         '''
+
+        # get the i and j values for all the actions around the current node
         for i in range(-1,2):
             for j in range(-1,2):
+                #  Case 0 : remove the possible action of not moving
                 if i != 0 or j != 0:
+                    # get the new coodinate
                     new_X = node.coordinates[0] + i
                     new_Y = node.coordinates[1] + j
+                    # check if the move to the new coordinate is a diagonal
                     diagonal = self.check_diagonal(i,j)
+
                     # Case 1 (Out of Bounds)
+                    # Check whether the move will take the agent out of bounds
                     if new_X >= 0 and new_Y >= 0 and new_X < len(self.MAP) and new_Y < len(self.MAP):
+
                         # Case 2 (Ridge)
-                        if not self.check_ridge(node.coordinates[0], node.coordinates[1], new_X,new_Y,diagonal):
+                        # Check whether the next move is a ridge or a diagonal with a ridge as a neighbour
+                        if not self.check_ridge(node.coordinates[0], node.coordinates[1], new_X, new_Y, diagonal):
+
+                            # calculate the cost for the move
                             new_Cost = self.get_cost(diagonal)
+
                             # Case 3 (Check if its in the ancestor list)
+                            # check whether the new location is in the ancestor list
                             if self.NODEMAP[new_X][new_Y] not in self.CLOSED:
+
+                                # check whether if there already exist a path
                                 if self.NODEMAP[new_X][new_Y] is not None:
 
-                                    new_Node = Node(self.NODEMAP[new_X][new_Y].identifier,
-                                                    self.ACTIONS[i+1][j+1],
-                                                    self.expansion_count,
-                                                    node.cost + new_Cost,
-                                                    self.heuristic(new_X,new_Y),
-                                                    node,
-                                                    [new_X, new_Y]
+                                    # if path exist, then create a new node, with the same identifier as the previous
+                                    # path
+                                    new_Node = Node(self.NODEMAP[new_X][new_Y].identifier,  # use the old identifier
+                                                    self.ACTIONS[i+1][j+1],                 # add the action
+                                                    0,                                      # set the expansion count
+                                                    node.cost + new_Cost,                   # set the new cost
+                                                    self.heuristic(new_X,new_Y),            # calculate the heuristic
+                                                    node,                                   # set the parent node
+                                                    [new_X, new_Y]                          # set the x and y location
                                                     )
 
+                                    # check whether the new node is a goal
                                     if self.check_goal(new_X,new_Y):
+                                        # flag the node if it is a goal
                                         new_Node.isGOAL = True
+
+                                    # check if the cost of the new node us less than the old one
                                     if new_Node.cost < self.NODEMAP[new_X][new_Y].cost :
+                                        # if less, then update the cost
                                         self.NODEMAP[new_X][new_Y] = new_Node
 
                                 else:
-                                    new_Node = Node(self.node_count,
-                                                    self.ACTIONS[i + 1][j + 1],
-                                                    self.expansion_count,
-                                                    node.cost + new_Cost,
-                                                    self.heuristic(new_X, new_Y),
-                                                    node,
-                                                    [new_X, new_Y]
+                                    # if a path doesnt exist
+                                    new_Node = Node(self.node_count,                # set the identifier
+                                                    self.ACTIONS[i + 1][j + 1],     # set the action
+                                                    0,                              # set the expansion order
+                                                    node.cost + new_Cost,           # set the new cost
+                                                    self.heuristic(new_X, new_Y),   # calculate the heuristic
+                                                    node,                           # set the parent
+                                                    [new_X, new_Y]                  # set the x and y coordinates
                                                     )
 
+                                    # check whether the new node is a goal
                                     if self.check_goal(new_X, new_Y):
+                                        # flag the node if it is a goal
                                         new_Node.isGOAL = True
 
+                                    # set the new node on the node matrix
                                     self.NODEMAP[new_X][new_Y] = new_Node
+
+                                    # increment the node identifier count
                                     self.node_count += 1
+
+                                    # add the node to the open list
                                     self.OPEN.append(self.NODEMAP[new_X][new_Y])
 
+                                # add the node to the children list
                                 node.children.append(self.NODEMAP[new_X][new_Y])
 
 
@@ -224,7 +254,7 @@ class SearchGraph:
         '''
         get the cost of the move, if the move is diagonal then the cost will be 1 else cost will be 2
         @param diagonal: flag to determine whether the move is diagonal
-        @return:
+        @return: 1 if the diagonal is true and 2 if move is not diagonal
         '''
         if diagonal:
             return 1
@@ -232,8 +262,20 @@ class SearchGraph:
             return 2
 
     def check_ridge(self,current_X, current_Y, new_X,new_Y, diagonal):
+        '''
+        method used to check whether the next move is a ridge or the next move is a diagonal with a ridge. if so return
+        true stating that it is a ridge
+        @param current_X: current x coordinate of the agent
+        @param current_Y: current y coordinate of the agent
+        @param new_X: planned new x coordinate of the agent
+        @param new_Y: planned new y coordinate of the agent
+        @param diagonal: flag to state whether the move is diagonal or not
+        @return: return True if the next move is invalid because of a ridge
+        '''
+        # Checking whether the next move is a ridge
         if self.MAP[new_X][new_Y] == 'X':
             return True
+        # If diagonal, checking whether the next move contains a ridge as a neighbour
         if diagonal and new_X - 1 >= 0 and (new_X - 1 != current_X - 2) and self.MAP[new_X - 1][new_Y] == 'X':
             return True
         if diagonal and new_X + 1 < len(self.MAP) and (new_X + 1 != current_X + 2) and self.MAP[new_X + 1][new_Y] == 'X':
@@ -242,64 +284,121 @@ class SearchGraph:
             return True
         if diagonal and new_Y + 1 < len(self.MAP) and (new_Y + 1 != current_Y + 2) and self.MAP[new_X][new_Y + 1] == 'X':
             return True
+        # If it not a ridge, then return false
         return False
 
     def check_goal(self,new_X,new_Y):
+        '''
+        method used to determine whether the coordinates point to a goal on the map
+        @param new_X: the new x coordinate on the map
+        @param new_Y: the new y coordinate on the map
+        @return: returns true of the coordinates point to a goal node
+        '''
         if self.MAP[new_X][new_Y] == 'G':
             return True
         return False
 
     def heuristic(self,x,y):
+        '''
+        method used to calculate the heuristic value given the current x and y coordinates
+        @param x: current x coordinate
+        @param y: current y coordinate
+        @return: returns the heuristic value
+        '''
+        # Calculate the difference in both x and y directions
         dx = abs(x - self.GOAL_COORD[0])
         dy = abs(y - self.GOAL_COORD[1])
 
+        # Returns the max of either the x or y direction
         return max(dx,dy)
 
     def order(self):
+        '''
+        method used to order the frontier by reference for A star algorithm
+        @return: None
+        '''
         self.OPEN.sort(key=lambda x: x, reverse=True)
 
 
     def search(self):
+        '''
+        method used to run the search and determine a path to the goal
+        @return: the path as a string or 'NO-PATH" if path doesn't exist
+        '''
+        # record the start time
         start = time.time()
-        while len(self.OPEN) > 0 :
 
+        # loop through the frontier list until its empty
+        while len(self.OPEN) > 0 :
+            # pop the current node from the frontier list
             current_node = self.OPEN.pop()
 
+            # if the algorithm is DLS, check whether the depth of the current node is less than the bound
             if self.options['algorithm'] == 'D' and len(current_node) > self.options['bound']:
+                # if the path is more than the bound, skip the current node
                 continue
 
+            # using the current node, generate the path to the root as a string
             generated_solution = current_node.get_operators_to_root()
 
+            # add the current node to the closed/explored list
             self.CLOSED.append(current_node)
 
+            # expand the current node to get the possible children
             self.expand(current_node)
+
+            # update the expansion count of the current node
             current_node.order_of_expansion = self.expansion_count
+
+            # increment the expansion node count
             self.expansion_count += 1
 
+            # after adding the child nodes to the frontier, check whether the algorithm is A, if so order the list
+            # based on cost
             if self.options['algorithm'] == 'A':
+                # call the order method, that will order the nodes in the list by the f value
                 self.order()
 
+            # based on the options selected by the user, display the current node
             self.display(current_node)
 
+            # if the current node which we expanded is the goal
             if current_node.isGOAL:
+                # update the search options to state that the goal was reached
                 self.options['goal_reached'] = True
+                # check if the user wants to display the path as output on the screen
                 if self.options['display_output']:
+                    # display the path as output on the screen
                     self.display(current_node)
+                    # check if the user wants to print the time taken for the search
                     if self.options['show_time']:
+                        # get the ending time
                         end = time.time()
+                        # print the time taken
                         print("Time Taken for " + self.options['algorithm'] + ": " + str(end - start))
+                # return the generated path as solution
                 return generated_solution
 
+        # check if the user wants to print the output on the screen
         if self.options['display_output'] :
+            # print NO-PATH if there exist no path to the goal node
             print("NO-PATH")
+            # check if the user wants to print the time
             if self.options['show_time']:
+                # get the ending time
                 end = time.time()
+                # print the time taken
                 print("Time Taken for " + self.options['algorithm'] + ": " + str(end - start))
 
+        # if no path exist, then return NO-PATH
         return "NO-PATH"
 
 
     def get_open_list_as_string(self):
+        '''
+        method used to convert the open list to a string for printing
+        @return: the open list as a string
+        '''
         output = ''
         for open_node in self.OPEN:
             output += '(N' + str(open_node.identifier) + ':' + open_node.get_operators_to_root() \
@@ -307,6 +406,10 @@ class SearchGraph:
         return output
 
     def get_closed_list_as_string(self):
+        '''
+        method used to convert the closed list as a string for printing
+        @return: the closed list as a string
+        '''
         output = ''
         for closed_node in self.CLOSED:
             output += '(N' + str(closed_node.identifier) + ':' + closed_node.get_operators_to_root() + ' '\
@@ -316,24 +419,37 @@ class SearchGraph:
 
 
     def display(self,current_node):
+        '''
+        method used to display output to the user on the terminal
+        @param current_node: the reference to the current node
+        @return: none
+        '''
         output = ''
-
+        # check whether the node expansion value is higher than the current node expansions printed value
         if self.options['display_node_expansion'] > 0:
             output += str(current_node) + '\n'
 
+            # print the open list as a string
             output += 'OPEN:\t{'
             output += self.get_open_list_as_string()
             output += '}\n'
 
+            # print the close list as a string
             output += 'CLOSED:\t{'
             output += self.get_closed_list_as_string()
             output += '}\n'
 
+            # decrement the number of node expansions to display in debug mode
             self.options['display_node_expansion'] -= 1
+
+            # display the output
             print(output)
 
+        # check if the goal state is reached
         if self.options['goal_reached'] :
+            # loop via the parents to the root/start node
             while current_node != None:
+                # print the map on to the screen
                 map = ''
                 if self.options['display_map']:
                     for i in range(len(self.MAP)):
@@ -345,20 +461,37 @@ class SearchGraph:
                             else:
                                 map += self.MAP[i][j]
                         map += '\n'
+                # get the path to the root from the goal state
                 current_node.get_operators_to_root()
+                # display the outputn on to the screen
                 output = map  + '\n' +  current_node.get_operators_to_root() + ' ' + str(current_node.cost) + '\n\n' + output
+                # set the current node as the parent for traversal
                 current_node = current_node.parent
+
+            # display the output
             print(output)
 
 def graphsearch(map, flag, procedure_name):
+    '''
+    driver method used to initialize the graph and call the correct search function
+    @param map: the input map with the size on the first row
+    @param flag: the number of node expansions to display
+    @param procedure_name: name of the algorithm to use as specified by the user
+    @return: the solution as a string, if no solution then return 'NO-PATH'
+    '''
 
+    # extract the map size
     map_size = map[0]
+    # initialize the Search Graph class using the map size
     search_graph = SearchGraph(map_size)
+    # add the map to the search graph and generate the start node
     search_graph.add_map(map)
+    # set the graph node expansion value
     search_graph.options['display_node_expansion'] = flag
 
+    # determine the search type and set the graph options
     if procedure_name == "D":
-        bound = 300  # you have to determine its value
+        bound = 10  # you have to determine its value
         # print("your code for DLS goes here")
         search_graph.options['bound'] = bound
         search_graph.options['algorithm'] = 'D'
@@ -367,7 +500,11 @@ def graphsearch(map, flag, procedure_name):
         search_graph.options['algorithm'] = 'A'
     else:
         print("invalid procedure name")
+
+    # call the search function to search the solution
     solution = search_graph.search()
+
+    # return the solution
     return solution
 
 def read_from_file(file_name):
