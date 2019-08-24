@@ -39,6 +39,7 @@ class Node:
         self.children = []                                  # the list of child nodes of this node
         self.coordinates = coordinates                      # the coordinates of this node on the node map
         self.isGOAL = False                                 # flag to determine whether its a goal state or not
+        self.best_operators = ['LU', 'RU', 'LD', 'RD']
 
     def get_operators_to_root(self):
         '''
@@ -65,7 +66,17 @@ class Node:
         @param other: the other node to be compared
         @return: boolean value stating whether its less than or not
         '''
-        return (self.f < other.f)
+        if (self.f < other.f):
+            return True
+        elif(self.f == other.f ):
+            if self.operator in self.best_operators:
+                return True
+            elif other.operator in other.best_operators:
+                return False
+            else:
+                return True
+        else:
+            return False
 
     def __len__(self):
         '''
@@ -125,7 +136,7 @@ class SearchGraph:
 
         self.options = {                            # set of options for the graph search
             'display_output' : True,                # flag to decide whether to display the output or not
-            'display_map' : True,                   # flag to decide whether to display the map in the output
+            'display_map' : False,                   # flag to decide whether to display the map in the output
             'display_node_expansion' : 0,           # integer to keep track of the count of node expansions to print
             'goal_reached': False,                  # flag to keep track whether the goal has been reached
             'algorithm' : 'D',                      # stores which algorithm to use for the search
@@ -179,7 +190,7 @@ class SearchGraph:
                         if not self.check_ridge(node.coordinates[0], node.coordinates[1], new_X, new_Y, diagonal):
 
                             # calculate the cost for the move
-                            new_Cost = self.get_cost(diagonal)
+                            new_cost = node.cost + self.get_cost(diagonal)
 
                             # Case 3 (Check if its in the ancestor list)
                             # check whether the new location is in the ancestor list
@@ -188,33 +199,27 @@ class SearchGraph:
                                 # check whether if there already exist a path
                                 if self.NODEMAP[new_X][new_Y] is not None:
 
-                                    # if path exist, then create a new node, with the same identifier as the previous
-                                    # path
-                                    new_Node = Node(self.NODEMAP[new_X][new_Y].identifier,  # use the old identifier
-                                                    self.ACTIONS[i+1][j+1],                 # add the action
-                                                    0,                                      # set the expansion count
-                                                    node.cost + new_Cost,                   # set the new cost
-                                                    self.heuristic(new_X,new_Y),            # calculate the heuristic
-                                                    node,                                   # set the parent node
-                                                    [new_X, new_Y]                          # set the x and y location
-                                                    )
+                                    if new_cost < self.NODEMAP[new_X][new_Y].cost :
+                                        # if less, then update the node to the new values
 
-                                    # check whether the new node is a goal
-                                    if self.check_goal(new_X,new_Y):
-                                        # flag the node if it is a goal
-                                        new_Node.isGOAL = True
-
-                                    # check if the cost of the new node us less than the old one
-                                    if new_Node.cost < self.NODEMAP[new_X][new_Y].cost :
-                                        # if less, then update the cost
-                                        self.NODEMAP[new_X][new_Y] = new_Node
+                                        # update the actions
+                                        self.NODEMAP[new_X][new_Y].operator = self.ACTIONS[i+1][j+1]
+                                        # update the cost
+                                        self.NODEMAP[new_X][new_Y].cost = new_cost
+                                        # update the heuristic
+                                        self.NODEMAP[new_X][new_Y].heuristic = self.heuristic(new_X,new_Y)
+                                        # update the new f
+                                        self.NODEMAP[new_X][new_Y].f = self.NODEMAP[new_X][new_Y].cost + \
+                                                                       self.NODEMAP[new_X][new_Y].heuristic
+                                        # update the parent
+                                        self.NODEMAP[new_X][new_Y].parent = node
 
                                 else:
                                     # if a path doesnt exist
                                     new_Node = Node(self.node_count,                # set the identifier
                                                     self.ACTIONS[i + 1][j + 1],     # set the action
                                                     0,                              # set the expansion order
-                                                    node.cost + new_Cost,           # set the new cost
+                                                    new_cost,                       # set the new cost
                                                     self.heuristic(new_X, new_Y),   # calculate the heuristic
                                                     node,                           # set the parent
                                                     [new_X, new_Y]                  # set the x and y coordinates
@@ -234,8 +239,8 @@ class SearchGraph:
                                     # add the node to the open list
                                     self.OPEN.append(self.NODEMAP[new_X][new_Y])
 
-                                # add the node to the children list
-                                node.children.append(self.NODEMAP[new_X][new_Y])
+                            # add the node to the children list
+                            node.children.append(self.NODEMAP[new_X][new_Y])
 
 
 
@@ -491,7 +496,7 @@ def graphsearch(map, flag, procedure_name):
 
     # determine the search type and set the graph options
     if procedure_name == "D":
-        bound = 10  # you have to determine its value
+        bound = 200  # you have to determine its value
         # print("your code for DLS goes here")
         search_graph.options['bound'] = bound
         search_graph.options['algorithm'] = 'D'
