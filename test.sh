@@ -20,7 +20,7 @@ python planpath.py INPUT/input6.txt OUTPUT/output6.txt 0 D
 echo 'input7.txt'
 python planpath.py INPUT/input7.txt OUTPUT/output7.txt 0 D
 echo 'input8.txt'
-python planpath.py INPUT/input8.txt OUTPUT/output9.txt 0 D
+python planpath.py INPUT/input8.txt OUTPUT/output8.txt 0 D
 echo 'input9.txt'
 python planpath.py INPUT/input9.txt OUTPUT/output9.txt 0 D
 
@@ -43,6 +43,6 @@ python planpath.py INPUT/input6.txt OUTPUT/output6.txt 0 A
 echo 'input7.txt'
 python planpath.py INPUT/input7.txt OUTPUT/output7.txt 0 A
 echo 'input8.txt'
-python planpath.py INPUT/input8.txt OUTPUT/output9.txt 0 A
+python planpath.py INPUT/input8.txt OUTPUT/output8.txt 0 A
 echo 'input9.txt'
 python planpath.py INPUT/input9.txt OUTPUT/output9.txt 0 A
